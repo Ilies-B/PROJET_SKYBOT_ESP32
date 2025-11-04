@@ -1,6 +1,10 @@
-// Pilotage d'une LED depuis une page Web avec w3.css //
+// Affichage d'une variable sur une page Web  //
 #include <WiFi.h>
 #include <WebServer.h>
+
+// Potentiomètre relié à GPIO 34 (Analog ADC1_CH6)
+const int potPin = 34;
+
 const char *ssid = "Galaxybouss";
 const char *password = "ovvl1205";
 
@@ -17,10 +21,11 @@ void handleRoot()
     page += "    <meta httpequiv='refresh' content='60' name='viewport' content='width=devicewidth, initial-scale=1' charset='UTF-8' />";
     page += "    <link rel='stylesheet' href='https://www.w3schools.com/w3css/4/w3.css'>";
     page += "</head>";
+
     page += "<body>";
     page += "    <div class='w3-card w3-blue w3-padding-small w3-jumbo w3center'>";
-    page += "        <p>ÉTAT LED: ";
-    page += texteEtatLed[etatLed];
+    page += "        <p>Valeur Potentiomètre : ";
+    page += String(analogRead(potPin));
     +"</p>";
     page += "    </div>";
     page += "    <div class='w3-bar'>";
@@ -31,7 +36,6 @@ void handleRoot()
     page += "        <p>Serveur hébergé sur un ESP32</p>";
     page += "        <i>Projet SNBot</i>";
     page += "    </div>";
-
     page += "</body>";
     page += "</html>";
     server.setContentLength(page.length());
@@ -62,6 +66,7 @@ void setup()
     Serial.println("\n");
     pinMode(led, OUTPUT);
     digitalWrite(led, LOW);
+
     WiFi.persistent(false);
     WiFi.begin(ssid, password);
     Serial.print("Tentative de connexion...");
