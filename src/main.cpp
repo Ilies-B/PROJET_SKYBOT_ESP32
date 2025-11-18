@@ -1,95 +1,78 @@
-// Affichage d'une variable sur une page Web  //
+#include <Arduino.h>
 #include <WiFi.h>
-#include <WebServer.h>
+#include <ESPAsyncWebServer.h>
 #include <LittleFS.h>
 
-// Potentiomètre relié à GPIO 34 (Analog ADC1_CH6)
-const int potPin = 34;
-
-const char *ssid = "Galaxybouss";
+const char *ssid = "Ilies";
 const char *password = "ovvl1205";
+const int led = 2; // Led intégrée à l'ESP32
 
-WebServer server(80);
-const int led = 2;
-bool etatLed = 0;
-char texteEtatLed[2][10] = {"ÉTEINTE!", "ALLUMÉE!"};
-void handleRoot()
-{
-    String page = "<!DOCTYPE html>";
-    page += "<html lang='fr'>";
-    page += "<head>";
-    page += "    <title>Serveur ESP32</title>";
-    page += "    <meta httpequiv='refresh' content='60' name='viewport' content='width=devicewidth, initial-scale=1' charset='UTF-8' />";
-    page += "    <link rel='stylesheet' href='https://www.w3schools.com/w3css/4/w3.css'>";
-    page += "</head>";
+AsyncWebServer server(80);
 
-    page += "<body>";
-    page += "    <div class='w3-card w3-blue w3-padding-small w3-jumbo w3center'>";
-    page += "        <p>Valeur Potentiomètre : ";
-    page += String(analogRead(potPin));
-    +"</p>";
-    page += "    </div>";
-    page += "    <div class='w3-bar'>";
-    page += "        <a href='/on' class='w3-bar-item w3-button w3-border w3jumbo' style='width:50%; height:50%;'>ON</a>";
-    page += "        <a href='/off' class='w3-bar-item w3-button w3-border w3jumbo' style='width:50%; height:50%;'>OFF</a>";
-    page += "    </div>";
-    page += "    <div class='w3-center w3-padding-16'>";
-    page += "        <p>Serveur hébergé sur un ESP32</p>";
-    page += "        <i>Projet SNBot</i>";
-    page += "    </div>";
-    page += "</body>";
-    page += "</html>";
-    server.setContentLength(page.length());
-    server.send(200, "text/html", page);
-}
-void handleOn()
-{
-    etatLed = 1;
-    digitalWrite(led, HIGH);
-    server.sendHeader("Location", "/");
-    server.send(303);
-}
-void handleOff()
-{
-    etatLed = 0;
-    digitalWrite(led, LOW);
-    server.sendHeader("Location", "/");
-    server.send(303);
-}
-void handleNotFound()
-{
-    server.send(404, "text/plain", "404: Not found");
-}
 void setup()
 {
-    Serial.begin(9600);
-    delay(1000);
+
+    Serial.begin(115200);
     Serial.println("\n");
+
     pinMode(led, OUTPUT);
     digitalWrite(led, LOW);
 
-    WiFi.persistent(false);
-    WiFi.begin(ssid, password);
+    //-------------------------- LittleFS ---------------------
+    if (!LittleFS.begin(true)) // Le paramètre true force un formatage de la partition LittleFS si elle est corrompue.
+    {                          // Démarrage du gestionnaire de fichiers LittleFS
+        Serial.println("Erreur LittleFS...");
+        return;
+    }
+
+    // Détection des fichiers présents sur l’ESP32
+    File root = LittleFS.open("/");  // Ouverture de la racine
+    File file = root.openNextFile(); // Ouverture du 1er fichier
+
+    while (file)
+    { // Boucle de test de présence des fichiers - Si plus de fichiers la boucle s'arrête
+        Serial.print("File: ");
+        Serial.println(file.name());
+        file.close();
+        file = root.openNextFile(); // Lecture du fichier suivant
+    }
+
+    //-------------------------- WIFI ------------------------
+    WiFi.begin(ssid, password); // Connexion au WiFi
     Serial.print("Tentative de connexion...");
+
     while (WiFi.status() != WL_CONNECTED)
     {
         Serial.print(".");
         delay(100);
     }
 
-    Serial.println("\n");
-    Serial.println("Connexion etablie!");
+    Serial.println("\nConnexion établie !");
     Serial.print("Adresse IP: ");
     Serial.println(WiFi.localIP());
-    server.on("/", handleRoot);
-    server.on("/on", handleOn);
-    server.on("/off", handleOff);
-    server.onNotFound(handleNotFound);
-    server.begin();
 
-    Serial.println("Serveur web actif!");
+    //-------------------------- SERVEUR ------------------------
+    /* Lorsque le serveur est actif , la page index.html est chargée */
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
+              { request->send(LittleFS, "/index.html", "text/html"); });
+
+    // Allumer la LED (lorsque l'on clique sur ON)
+    server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request)
+              {
+        digitalWrite(led, HIGH);
+        request->send(LittleFS, "/index.html", "text/html"); });
+
+    // Éteindre la LED (lorsque l'on clique sur OFF)
+    server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request)
+              {
+        digitalWrite(led, LOW);
+        request->send(LittleFS, "/index.html", "text/html"); });
+    /* On affiche que le serveur est actif */
+    server.begin();
+    Serial.println("Serveur actif !");
 }
+
 void loop()
 {
-    server.handleClient();
+    // Vide
 }
