@@ -3,6 +3,10 @@
 #include <SPIFFS.h>
 #include <LittleFS.h>
 #include <WiFi.h>
+#include <AsyncTCP.h>
+
+// const char *ssid = "Nom du réseau";
+// const char *password = "Mot de passe";
 const char *ssid = "Ilies";
 const char *password = "ovvl1205";
 const int led = 2; // Led intégrée à l'ESP32
@@ -49,25 +53,24 @@ void setup()
 
     //--------------------------SERVEUR--------------------------
     /* Lorsque le serveur est actif , la page index.html est chargée */
-    server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request)
-              { request->send(LittleFS, "/style.css", "text/css"); });
+    server.on("/w3.css", HTTP_GET, [](AsyncWebServerRequest *request)
+              { request->send(LittleFS, "/w3.css", "text/css"); });
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
               { request->send(LittleFS, "/index.html", "text/html"); });
 
     /* Lorsque l'on clique sur ON, on allume la led */
     server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request)
-              {     
-    digitalWrite(led, HIGH);     
+              {     digitalWrite(led, HIGH);     
     request->send(LittleFS, "/index.html", "text/html"); });
     /* Lorsque l'on clique sur OFF, on éteint la led */
     server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request)
-              {     
-    digitalWrite(led, LOW);     
+              {     digitalWrite(led, LOW);     
     request->send(LittleFS, "/index.html", "text/html"); });
     /* On affiche que le serveur est actif */
     server.begin();
     Serial.println("Serveur actif!");
 }
+
 void loop() /* La loop est vide */
 {
 }
