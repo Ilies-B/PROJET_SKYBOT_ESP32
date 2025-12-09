@@ -1,76 +1,87 @@
 #include <Arduino.h>
-#include <ESPAsyncWebServer.h>
-#include <SPIFFS.h>
-#include <LittleFS.h>
 #include <WiFi.h>
 #include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <LittleFS.h>
 
-// const char *ssid = "Nom du réseau";
-// const char *password = "Mot de passe";
 const char *ssid = "Ilies";
 const char *password = "ovvl1205";
-const int led = 2; // Led intégrée à l'ESP32
+
+const int ledPin = 2;
+String ledState;
 
 AsyncWebServer server(80);
+
+// Mettre l'état du ROBOT dans l'emplacement réservé
+String processor(const String &var)
+{
+    Serial.println(var);
+
+    if (var == "STATE")
+    {
+        if (digitalRead(ledPin))
+        {
+            ledState = "MARCHE";
+        }
+        else
+        {
+            ledState = "ARRET";
+        }
+
+        Serial.print(ledState);
+        return ledState;
+    }
+    return String();
+}
+
 void setup()
 {
-
     Serial.begin(115200);
-    pinMode(led, OUTPUT);
-    digitalWrite(led, LOW);
+    pinMode(ledPin, OUTPUT);
 
-    //---------------------------LittleFS-------------------
-    if (!LittleFS.begin()) /* Démarrage du gestionnaire de fichiers LittleFS */
+    // Initialisation de LittleFS
+    if (!LittleFS.begin(true))
     {
-        Serial.println("Erreur LittleFS...");
+        Serial.println("Erreur lors du montage de LittleFS");
         return;
     }
 
-    /* Détection des fichiers présents sur l'Esp32 */
-    File root = LittleFS.open("/");  /* Ouverture de la racine */
-    File file = root.openNextFile(); /* Ouverture du 1er fichier */
-    while (file)                     /* Boucle de test de présence des fichiers - Si plus de fichiers la boucle s'arrête*/
-    {
-        Serial.print("File: ");
-        Serial.println(file.name());
-        file.close();
-        file = root.openNextFile(); /* Lecture du fichier suivant */
-    }
+    // Connexion au WiFi
+    WiFi.begin(ssid, password);
+    Serial.print("Connexion au WiFi");
 
-    //-----------------------WIFI-----------------------------
-    WiFi.begin(ssid, password); /* Connexion au réseau Wifi */
-    Serial.print("Tentative de connexion...");
     while (WiFi.status() != WL_CONNECTED)
     {
+        delay(500);
         Serial.print(".");
-        delay(100);
     }
 
-    Serial.println("\n");
-    Serial.println("Connexion etablie!");
-    Serial.print("Adresse IP: ");
+    Serial.println("\nConnecté !");
+    Serial.print("Adresse IP : ");
     Serial.println(WiFi.localIP());
 
-    //--------------------------SERVEUR--------------------------
-    /* Lorsque le serveur est actif , la page index.html est chargée */
-    server.on("/w3.css", HTTP_GET, [](AsyncWebServerRequest *request)
-              { request->send(LittleFS, "/w3.css", "text/css"); });
+    // Routes serveur
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
-              { request->send(LittleFS, "/index.html", "text/html"); });
+              { request->send(LittleFS, "/index.html", String(), false, processor); });
 
-    /* Lorsque l'on clique sur ON, on allume la led */
+    server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request)
+              { request->send(LittleFS, "/style.css", "text/css"); });
+
     server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request)
-              {     digitalWrite(led, HIGH);     
-    request->send(LittleFS, "/index.html", "text/html"); });
-    /* Lorsque l'on clique sur OFF, on éteint la led */
+              {
+    digitalWrite(ledPin, HIGH);
+    request->send(LittleFS, "/index.html", String(), false, processor); });
+
     server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request)
-              {     digitalWrite(led, LOW);     
-    request->send(LittleFS, "/index.html", "text/html"); });
-    /* On affiche que le serveur est actif */
+              {
+    digitalWrite(ledPin, LOW);
+    request->send(LittleFS, "/index.html", String(), false, processor); });
+
     server.begin();
-    Serial.println("Serveur actif!");
+    Serial.println("Serveur actif !");
 }
 
-void loop() /* La loop est vide */
+void loop()
 {
+    // Vide
 }
