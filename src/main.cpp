@@ -7,31 +7,20 @@
 const char *ssid = "Ilies";
 const char *password = "ovvl1205";
 
-const int ledPin = 2;
+const int ledPin = 2;  // LED intégrée à l'ESP32
+const int potPin = 34; // Potentiomètre (ADC1_CH6)
+
 String ledState;
 
 AsyncWebServer server(80);
 
-// Mettre l'état du ROBOT dans l'emplacement réservé
+// Remplace l'espace réservé repéré par des % dans index.html
 String processor(const String &var)
 {
+    float mesure = analogRead(potPin);
     Serial.println(var);
-
-    if (var == "STATE")
-    {
-        if (digitalRead(ledPin))
-        {
-            ledState = "MARCHE";
-        }
-        else
-        {
-            ledState = "ARRET";
-        }
-
-        Serial.print(ledState);
-        return ledState;
-    }
-    return String();
+    Serial.println(String(mesure));
+    return String(mesure);
 }
 
 void setup()
@@ -39,28 +28,29 @@ void setup()
     Serial.begin(115200);
     pinMode(ledPin, OUTPUT);
 
-    // Initialisation de LittleFS
-    if (!LittleFS.begin(true))
+    // ----------- LittleFS -----------
+    if (!LittleFS.begin())
     {
-        Serial.println("Erreur lors du montage de LittleFS");
+        Serial.println("Erreur LittleFS...");
         return;
     }
 
-    // Connexion au WiFi
+    // ----------- WIFI ---------------
     WiFi.begin(ssid, password);
-    Serial.print("Connexion au WiFi");
+    Serial.print("Tentative de connexion...");
 
     while (WiFi.status() != WL_CONNECTED)
     {
-        delay(500);
         Serial.print(".");
+        delay(500);
     }
 
-    Serial.println("\nConnecté !");
-    Serial.print("Adresse IP : ");
+    Serial.println("\nConnexion établie !");
+    Serial.print("Adresse IP: ");
     Serial.println(WiFi.localIP());
 
-    // Routes serveur
+    // ----------- SERVEUR ------------
+
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
               { request->send(LittleFS, "/index.html", String(), false, processor); });
 
@@ -69,16 +59,16 @@ void setup()
 
     server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request)
               {
-    digitalWrite(ledPin, HIGH);
-    request->send(LittleFS, "/index.html", String(), false, processor); });
+        digitalWrite(ledPin, HIGH);
+        request->send(LittleFS, "/index.html", String(), false, processor); });
 
     server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request)
               {
-    digitalWrite(ledPin, LOW);
-    request->send(LittleFS, "/index.html", String(), false, processor); });
+        digitalWrite(ledPin, LOW);
+        request->send(LittleFS, "/index.html", String(), false, processor); });
 
     server.begin();
-    Serial.println("Serveur actif !");
+    Serial.println("Serveur démarré !");
 }
 
 void loop()
